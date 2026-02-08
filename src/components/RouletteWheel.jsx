@@ -97,10 +97,8 @@ export const RouletteWheel = ({
                     style={{
                       left: `${x}%`,
                       top: `${y}%`,
-                      transform: `translate(-50%, -50%) rotate(${angle}deg)`,
-                      writingMode: 'vertical-rl',
-                      textOrientation: 'mixed',
-                      fontSize: names.length > 15 ? '11px' : '13px',
+                      transform: `translate(-50%, -50%) rotate(${angle + 90}deg)`,
+                      fontSize: names.length > 15 ? '13px' : '16px',
                     }}
                   >
                     {name || ''}

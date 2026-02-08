@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { distributeParticipants, getAvailableParticipants, getOrderedAssignments, getEmptyDisplayStructure } from '../utils/distribution';
 
 const BASE_DURATIONS = {
@@ -9,6 +9,8 @@ const BASE_DURATIONS = {
 };
 
 export const useRouletteDistribution = (speedMultiplier = 1) => {
+  const cancelledRef = useRef(false);
+  const timeoutsRef = useRef([]);
   const [assignments, setAssignments] = useState({});
   const [displayedAssignments, setDisplayedAssignments] = useState({});
   const [isSpinning, setIsSpinning] = useState(false);
@@ -25,7 +27,19 @@ export const useRouletteDistribution = (speedMultiplier = 1) => {
     rentalCount,
     fixedPositions
   ) => {
+    cancelledRef.current = false;
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+
     const getDuration = (base) => Math.round(base * speedMultiplier);
+    const schedule = (fn, delay) => {
+      const id = setTimeout(() => {
+        if (!cancelledRef.current) fn();
+      }, delay);
+      timeoutsRef.current.push(id);
+      return id;
+    };
+
     setIsSpinning(true);
     setShowResults(true);
     setFlyingNames([]);
@@ -67,15 +81,15 @@ export const useRouletteDistribution = (speedMultiplier = 1) => {
         releaseIndex === 0
           ? getDuration(BASE_DURATIONS.INITIAL_SPIN)
           : getDuration(BASE_DURATIONS.SPIN_AND_STOP);
-      setTimeout(
+      schedule(
         () => setWheelNames(prev => prev.filter((n) => n !== name)),
         spinDuration + 400
       );
-      setTimeout(() => setSelectedName(null), 500);
+      schedule(() => setSelectedName(null), 500);
       setReleaseIndex(releaseIndex + 1);
 
       const landTime = delay + getDuration(BASE_DURATIONS.NAME_FLIGHT);
-      setTimeout(() => {
+      schedule(() => {
         setDisplayedAssignments(prev => ({
           ...prev,
           [position]: [...(prev[position] || []), name],
@@ -84,13 +98,16 @@ export const useRouletteDistribution = (speedMultiplier = 1) => {
       }, landTime);
 
       releaseIndex++;
-      setTimeout(releaseNext, getDuration(BASE_DURATIONS.STAGGER_DELAY));
+      schedule(releaseNext, getDuration(BASE_DURATIONS.STAGGER_DELAY));
     };
 
-    setTimeout(releaseNext, getDuration(BASE_DURATIONS.INITIAL_SPIN));
+    schedule(releaseNext, getDuration(BASE_DURATIONS.INITIAL_SPIN));
   }, [speedMultiplier]);
 
   const reset = useCallback(() => {
+    cancelledRef.current = true;
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
     setAssignments({});
     setDisplayedAssignments({});
     setShowResults(false);
