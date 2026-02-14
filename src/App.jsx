@@ -1,14 +1,16 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Play, RotateCcw } from 'lucide-react';
+import { Settings, Play, RotateCcw, History, CircleDot } from 'lucide-react';
 import {
   ConfigurationPanel,
   RouletteWheel,
   ResultsGrid,
   FlyingNames,
   EditableAssignmentsGrid,
+  RouletteHistory,
 } from './components';
 import { useRouletteDistribution } from './hooks/useRouletteDistribution';
+import { saveToHistory, generateHash } from './utils/rouletteHistory';
 import './App.css';
 
 function App() {
@@ -22,6 +24,8 @@ function App() {
   const [rentalCount, setRentalCount] = useState(1);
   const [showSettings, setShowSettings] = useState(true);
   const [speedMultiplier, setSpeedMultiplier] = useState(1); // 0.5=Fast, 1=Normal, 1.5=Slow
+  const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [activeTab, setActiveTab] = useState('ruleta'); // 'ruleta' | 'historial'
 
   const rouletteAreaRef = useRef(null);
 
@@ -69,6 +73,15 @@ function App() {
     );
   };
 
+  const handleDistributionComplete = (assignments, fixedPositions) => {
+    saveToHistory({
+      hash: generateHash(),
+      assignments,
+      fixedPositions: fixedPositions || {},
+    });
+    setHistoryRefresh((p) => p + 1);
+  };
+
   const handleStartRoulette = () => {
     setShowSettings(false);
     startDistribution(
@@ -76,7 +89,8 @@ function App() {
       enabledLifts,
       rentalsEnabled,
       rentalCount,
-      getFixedPositionsForDistribution()
+      getFixedPositionsForDistribution(),
+      handleDistributionComplete
     );
   };
 
@@ -92,15 +106,44 @@ function App() {
   return (
     <div className="min-h-screen bg-pattern" aria-busy={isSpinning}>
       <div className="max-w-7xl mx-auto px-4 py-8 md:px-8 md:py-10">
-        <header className="text-center mb-10">
+        <header className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-100 mb-1">
             The wheel of truth
           </h1>
-          <p className="text-slate-400 text-sm md:text-base">
+          <p className="text-slate-400 text-sm md:text-base mb-6">
             Automatic workstation distribution
           </p>
+          <div className="flex justify-center gap-2">
+            <button
+              onClick={() => setActiveTab('ruleta')}
+              className={`px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-colors ${
+                activeTab === 'ruleta'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600/80 hover:text-slate-300'
+              }`}
+            >
+              <CircleDot size={18} />
+              Roulette
+            </button>
+            <button
+              onClick={() => setActiveTab('historial')}
+              className={`px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-colors ${
+                activeTab === 'historial'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600/80 hover:text-slate-300'
+              }`}
+            >
+              <History size={18} />
+              History
+            </button>
+          </div>
         </header>
 
+        {activeTab === 'historial' ? (
+          <div className="max-w-2xl mx-auto">
+            <RouletteHistory refreshTrigger={historyRefresh} fullPage />
+          </div>
+        ) : (
         <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8 lg:gap-10 items-start">
           {/* LEFT: Config + Assignments */}
           <div className="space-y-6">
@@ -151,6 +194,7 @@ function App() {
                 <ResultsGrid assignments={displayedAssignments} />
               </div>
             )}
+
           </div>
 
           {/* RIGHT: Buttons + Wheel */}
@@ -233,6 +277,7 @@ function App() {
             </div>
           </div>
         </div>
+        )}
 
         <FlyingNames
           flyingNames={flyingNames}

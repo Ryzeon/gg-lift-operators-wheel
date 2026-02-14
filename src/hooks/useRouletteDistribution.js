@@ -25,7 +25,8 @@ export const useRouletteDistribution = (speedMultiplier = 1) => {
     enabledLifts,
     rentalsEnabled,
     rentalCount,
-    fixedPositions
+    fixedPositions,
+    onComplete
   ) => {
     cancelledRef.current = false;
     timeoutsRef.current.forEach(clearTimeout);
@@ -68,6 +69,9 @@ export const useRouletteDistribution = (speedMultiplier = 1) => {
 
     const releaseNext = () => {
       if (releaseIndex >= ordered.length) {
+        if (typeof onComplete === 'function') {
+          onComplete(newAssignments, fixedPositions);
+        }
         setIsSpinning(false);
         return;
       }

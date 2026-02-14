@@ -1,6 +1,38 @@
 import { LIFTS, POSITIONS } from '../constants/positions';
 
 /**
+ * Entero aleatorio uniforme en [0, max) - sin sesgo (rejection sampling).
+ * crypto.getRandomValues + rechazo de valores que causarían desbalance.
+ */
+const secureRandomInt = (max) => {
+  if (max <= 0) return 0;
+  const range = 2 ** 32;
+  const threshold = range - (range % max);
+  let value;
+  do {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    value = arr[0];
+  } while (value >= threshold);
+  return value % max;
+};
+
+/**
+ * Fisher-Yates shuffle con crypto - TODOS tienen EXACTAMENTE la misma probabilidad.
+ * Cada permutación tiene probabilidad 1/n! (imposible de sesgar).
+ * @param {Array} array
+ * @returns {Array} nuevo array mezclado
+ */
+const shuffle = (array) => {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = secureRandomInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
+
+/**
  * Distributes participants to positions based on configuration
  * @param {string[]} availableParticipants - List of participants not assigned to fixed positions
  * @param {Object} enabledLifts - Object indicating which lifts are active
@@ -16,8 +48,8 @@ export const distributeParticipants = (
   rentalCount,
   fixedPositions
 ) => {
-  // Shuffle available participants
-  const shuffled = [...availableParticipants].sort(() => Math.random() - 0.5);
+  // Fisher-Yates shuffle: distribución uniforme y justa
+  const shuffled = shuffle(availableParticipants);
   const assignments = {};
   Object.entries(fixedPositions || {}).forEach(([k, v]) => {
     assignments[k] = [...(v || [])];
